@@ -4,20 +4,15 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyB2m0nIRMYokHESDg0YT2G_SEPYCvUskGc",
-  authDomain: "mydrugpaddi.firebaseapp.com",
-  projectId: "mydrugpaddi",
-  storageBucket: "mydrugpaddi.firebasestorage.app",
-  messagingSenderId: "46525233174",
-  appId: "1:46525233174:web:b5a5a3f4ae17641adf1d37",
-  measurementId: "G-XZM44C8DZY"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyB2m0nIRMYokHESDg0YT2G_SEPYCvUskGc",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "mydrugpaddi.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "mydrugpaddi",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "mydrugpaddi.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "46525233174",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:46525233174:web:b5a5a3f4ae17641adf1d37",
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID || "G-XZM44C8DZY"
 };
 
 // Initialize Firebase
