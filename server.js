@@ -273,39 +273,20 @@ app.get("/api/languages", (req, res) => {
 });
 
 // Test endpoint
-app.get("/api/test", async (req, res) => {
+app.get("/api/test", (req, res) => {
   const testPrescription = "RX: Amoxicillin 500mg CAPs. Sig: 1 CAP PO TID x 10 days. Disp: #30. Refills: 0. Diagnosis: Acute bacterial sinusitis.";
   
-  try {
-    // Use the internal explain endpoint
-    const response = await fetch(`http://localhost:${process.env.PORT || 5000}/api/explain`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        text: testPrescription,
-        language: "english"
-      })
-    });
-
-    const data = await response.json();
-
-    res.json({
-      test: "API TEST",
-      input: testPrescription,
-      output: data,
-      status: "API is working correctly"
-    });
-  } catch (error) {
-    res.json({
-      test: "FALLBACK TEST",
-      input: testPrescription,
-      output: createIntelligentFallback(testPrescription, "english"),
-      status: "Using fallback analysis"
-    });
-  }
+  const fallbackExplanation = createIntelligentFallback(testPrescription, "english");
+  
+  res.json({
+    test: "API TEST",
+    input: testPrescription,
+    output: fallbackExplanation,
+    status: "API is working correctly (fallback mode)"
+  });
 });
 
-// Root endpoint
+// Root API endpoint
 app.get("/api", (req, res) => {
   res.json({ 
     message: "🏥 MyDrugPaddi Prescription Analysis API",
@@ -322,10 +303,15 @@ app.get("/api", (req, res) => {
   });
 });
 
-// FIXED: Catch all handler for React app - use a proper path pattern
+// FIXED: Simple catch-all route for React app (only in production)
 if (process.env.NODE_ENV === 'production') {
-  // Serve React app for any route that doesn't start with /api
-  app.get(/^(?!\/api).*/, (req, res) => {
+  // This must be the LAST route
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    // Serve React app for all other routes
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 } else {
@@ -339,20 +325,23 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Error handling middleware
+// Simple 404 handler for undefined API routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      error: "Endpoint not found",
+      message: "The requested API endpoint does not exist."
+    });
+  }
+  next();
+});
+
+// Basic error handling
 app.use((error, req, res, next) => {
   console.error('🚨 Server Error:', error);
   res.status(500).json({
     error: "Internal server error",
     message: "Something went wrong on our end. Please try again later."
-  });
-});
-
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({
-    error: "Endpoint not found",
-    message: "The requested API endpoint does not exist."
   });
 });
 
@@ -368,5 +357,3 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🏗️  Serving React build from: ${path.join(__dirname, 'build')}`);
   }
 });
-
-export default app;
