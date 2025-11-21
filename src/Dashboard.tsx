@@ -1205,7 +1205,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
 
       <footer className="bg-gray-100 dark:bg-gray-800 text-center p-4 text-sm text-gray-600 dark:text-gray-300 flex items-center justify-center">
         <Pill className="w-4 h-4 mr-2" />
-        © {new Date().getFullYear()} MyDrugPaddi. Supporting {LANGUAGES.length} languages for better healthcare access.
+        © {new Date().getFullYear()} MyDrugPaddi. 
       </footer>
     </div>
   );
