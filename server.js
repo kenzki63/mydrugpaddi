@@ -318,26 +318,10 @@ app.get("/api", (req, res) => {
   });
 });
 
-// COMPLETELY REWORKED CATCH-ALL HANDLER
-// The issue is with path-to-regexp version compatibility
-// Using multiple approaches to handle different route patterns
-
+// FIXED CATCH-ALL HANDLER: Using regex instead of wildcard
 if (process.env.NODE_ENV === 'production') {
-  // Approach 1: Use regex pattern instead of wildcard
-  app.get(/\/(.*)/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-  });
-  
-  // Approach 2: Alternative catch-all as backup
-  app.use((req, res, next) => {
-    // Skip API routes
-    if (req.path.startsWith('/api/')) {
-      return next();
-    }
-    // Skip static files that should be handled by express.static
-    if (req.path.includes('.')) {
-      return next();
-    }
+  // Serve React app for any non-API route
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 } else {
@@ -360,8 +344,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
+// FIXED: 404 handler for API routes - using regex instead of wildcard
+app.use(/\/api\//, (req, res) => {
   res.status(404).json({
     error: "Endpoint not found",
     message: "The requested API endpoint does not exist."
