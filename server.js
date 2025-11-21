@@ -277,18 +277,22 @@ app.get("/api/test", async (req, res) => {
   const testPrescription = "RX: Amoxicillin 500mg CAPs. Sig: 1 CAP PO TID x 10 days. Disp: #30. Refills: 0. Diagnosis: Acute bacterial sinusitis.";
   
   try {
-    const response = await axios.post(
-      "http://localhost:5000/api/explain",
-      { 
+    // Use the internal explain endpoint
+    const response = await fetch(`http://localhost:${process.env.PORT || 5000}/api/explain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
         text: testPrescription,
         language: "english"
-      }
-    );
+      })
+    });
+
+    const data = await response.json();
 
     res.json({
       test: "API TEST",
       input: testPrescription,
-      output: response.data,
+      output: data,
       status: "API is working correctly"
     });
   } catch (error) {
@@ -318,9 +322,10 @@ app.get("/api", (req, res) => {
   });
 });
 
-// Catch all handler - send React app for any other route (production only)
+// FIXED: Catch all handler for React app - use a proper path pattern
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+  // Serve React app for any route that doesn't start with /api
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 } else {
@@ -353,7 +358,7 @@ app.use('/api/*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 MyDrugPaddi Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔑 HF API Key: ${process.env.HF_API_KEY ? 'Configured' : 'Not configured'}`);
