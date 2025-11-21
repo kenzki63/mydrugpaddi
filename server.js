@@ -318,9 +318,26 @@ app.get("/api", (req, res) => {
   });
 });
 
-// FIXED: Catch all handler - using a named parameter instead of wildcard
+// COMPLETELY REWORKED CATCH-ALL HANDLER
+// The issue is with path-to-regexp version compatibility
+// Using multiple approaches to handle different route patterns
+
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+  // Approach 1: Use regex pattern instead of wildcard
+  app.get(/\/(.*)/, (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  });
+  
+  // Approach 2: Alternative catch-all as backup
+  app.use((req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
+    // Skip static files that should be handled by express.static
+    if (req.path.includes('.')) {
+      return next();
+    }
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 } else {
