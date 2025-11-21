@@ -318,7 +318,7 @@ app.get("/api", (req, res) => {
   });
 });
 
-// FIXED: Catch all handler - send React app for any other route (production only)
+// FIXED: Catch all handler - using a named parameter instead of wildcard
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
