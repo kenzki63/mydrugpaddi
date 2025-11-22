@@ -636,6 +636,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
   const [eli5Text, setEli5Text] = useState<string>("");
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   
   // Text-to-Speech State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -849,12 +850,15 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
     }
   };
 
+  // FIXED: Updated API call to use relative path
   const handleExplain = async () => {
     if (!ocrText) return;
+    setIsLoading(true);
     setEli5Text("Thinking...");
 
     try {
-      const response = await fetch("http://localhost:5000/api/explain", {
+      // Use relative path instead of localhost:5000
+      const response = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -862,6 +866,10 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
           language: selectedLanguage 
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -873,6 +881,8 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
     } catch (error) {
       console.error("AI fetch error:", error);
       setEli5Text("Server connection failed. Please try again later.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -980,10 +990,15 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
 
                   <button
                     onClick={handleExplain}
-                    className="mt-3 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition w-full flex items-center justify-center"
+                    disabled={isLoading}
+                    className={`mt-3 text-white px-3 py-2 rounded-lg transition w-full flex items-center justify-center ${
+                      isLoading 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-purple-600 hover:bg-purple-700'
+                    }`}
                   >
                     <Stethoscope className="w-4 h-4 mr-2" />
-                    Simplify in {currentLanguage?.name}
+                    {isLoading ? 'Processing...' : `Simplify in ${currentLanguage?.name}`}
                   </button>
                 </div>
               )}
