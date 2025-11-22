@@ -128,7 +128,7 @@ Focus on accuracy and be conservative - only include medications you're confiden
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `${this.baseUrl}/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [
             {
@@ -196,7 +196,7 @@ Format the response in clear, easy-to-understand language for patients.`;
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `${this.baseUrl}/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [
             {
