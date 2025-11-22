@@ -554,7 +554,11 @@ import {
   Plus,
   Calendar,
   Menu,
-  X
+  X,
+  Sparkles,
+  Shield,
+  AlertCircle,
+  Info
 } from 'lucide-react';
 
 interface Reminder {
@@ -574,7 +578,6 @@ const LANGUAGES = [
   { code: "yoruba", name: "Yoruba", flag: "🇳🇬", voice: "yo-NG" },
   { code: "igbo", name: "Igbo", flag: "🇳🇬", voice: "ig-NG" },
   { code: "hausa", name: "Hausa", flag: "🇳🇬", voice: "ha-NG" },
-  { code: "tiv", name: "Tiv", flag: "🇳🇬", voice: "en-GB" },
   { code: "french", name: "French", flag: "🇫🇷", voice: "fr-FR" },
   { code: "spanish", name: "Spanish", flag: "🇪🇸", voice: "es-ES" },
   { code: "german", name: "German", flag: "🇩🇪", voice: "de-DE" }
@@ -594,35 +597,47 @@ interface Props {
   onLogout: () => void;
 }
 
-// Fixed: Proper TypeScript interface for drug interactions
-interface DrugInteractions {
-  [key: string]: {
-    [key: string]: string;
-  };
-}
+// Format AI response with clean styling
+const formatAIResponse = (text: string) => {
+  if (!text) return text;
 
-// Common drug interactions for reminder system
-const COMMON_INTERACTIONS: DrugInteractions = {
-  'ibuprofen': {
-    'warfarin': 'High risk of bleeding',
-    'aspirin': 'Increased stomach bleeding risk',
-    'alcohol': 'Increased stomach irritation'
-  },
-  'amoxicillin': {
-    'warfarin': 'May increase bleeding risk',
-    'birth control': 'May reduce contraceptive effectiveness'
-  },
-  'metformin': {
-    'alcohol': 'Risk of lactic acidosis'
-  },
-  'sertraline': {
-    'ibuprofen': 'Increased bleeding risk',
-    'alcohol': 'Increased drowsiness'
-  },
-  'warfarin': {
-    'aspirin': 'Severely increased bleeding risk',
-    'ibuprofen': 'High risk of bleeding'
-  }
+  // Split into sections based on common headers
+  const sections = text.split(/\n(?=[A-Z][A-Za-z\s]+:)/);
+  
+  return sections.map((section, index) => {
+    const [header, ...content] = section.split('\n');
+    const cleanContent = content.filter(line => line.trim()).join('\n');
+    
+    return (
+      <div key={index} className="mb-4">
+        <div className="flex items-center mb-2">
+          {header.includes('MEDICATIONS') && <Pill className="w-4 h-4 mr-2 text-blue-600" />}
+          {header.includes('HOW TO TAKE') && <Clock className="w-4 h-4 mr-2 text-green-600" />}
+          {header.includes('SAFETY') && <Shield className="w-4 h-4 mr-2 text-yellow-600" />}
+          {header.includes('INTERACTIONS') && <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />}
+          {header.includes('WHEN TO CALL') && <AlertTriangle className="w-4 h-4 mr-2 text-red-600" />}
+          {header.includes('GENERAL') && <Info className="w-4 h-4 mr-2 text-purple-600" />}
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+            {header.replace(':', '')}
+          </h3>
+        </div>
+        <div className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+          {cleanContent.split('\n').map((line, lineIndex) => (
+            <div key={lineIndex} className="flex items-start mb-1">
+              {line.trim().startsWith('-') || line.trim().startsWith('•') ? (
+                <>
+                  <span className="text-gray-400 mr-2">•</span>
+                  <span>{line.replace(/^[-•]\s*/, '')}</span>
+                </>
+              ) : (
+                <span>{line}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  });
 };
 
 const Dashboard: React.FC<Props> = ({ onLogout }) => {
@@ -718,27 +733,6 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
     setIsSpeaking(false);
   };
 
-  // Fixed: Check for drug interactions when adding new medication
-  const checkDrugInteractions = (newMed: string): string[] => {
-    const warnings: string[] = [];
-    const newMedLower = newMed.toLowerCase();
-    
-    reminders.forEach(reminder => {
-      const existingMedLower = reminder.medicine.toLowerCase();
-      
-      // Check both directions with proper type safety
-      const interaction1 = COMMON_INTERACTIONS[newMedLower]?.[existingMedLower];
-      const interaction2 = COMMON_INTERACTIONS[existingMedLower]?.[newMedLower];
-      const interaction = interaction1 || interaction2;
-      
-      if (interaction) {
-        warnings.push(`⚠️ ${newMed} + ${reminder.medicine}: ${interaction}`);
-      }
-    });
-    
-    return warnings;
-  };
-
   // Upload handler
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -752,16 +746,9 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
     );
   };
 
-  // Add new reminder with interaction check
+  // Add new reminder
   const addReminder = () => {
     if (newTime && newMedicine && newDosage && selectedDays.length > 0) {
-      // Check for drug interactions
-      const interactionWarnings = checkDrugInteractions(newMedicine);
-      
-      if (interactionWarnings.length > 0) {
-        alert(`DRUG INTERACTION WARNING:\n\n${interactionWarnings.join('\n')}\n\nPlease consult your doctor or pharmacist.`);
-      }
-      
       setReminders([
         ...reminders,
         {
@@ -870,10 +857,9 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
   const handleExplain = async () => {
     if (!ocrText) return;
     setIsLoading(true);
-    setEli5Text("Thinking...");
+    setEli5Text("Analyzing your prescription...");
 
     try {
-      // Use relative path instead of localhost:5000
       const response = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1075,66 +1061,80 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                 </div>
               )}
 
-              {/* Simplified Explanation with Speech */}
-              {eli5Text && eli5Text !== "Thinking..." && (
-                <div className="mt-4 bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-700">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-green-800 dark:text-green-200 flex items-center text-sm md:text-base">
-                      <Stethoscope className="w-4 h-4 mr-2" />
-                      Simplified Explanation:
-                    </h3>
+              {/* Clean AI Explanation with Speech */}
+              {eli5Text && eli5Text !== "Analyzing your prescription..." && (
+                <div className="mt-4 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 p-4 md:p-6 rounded-2xl border border-blue-200 dark:border-blue-700 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-bold text-blue-800 dark:text-blue-200 text-base md:text-lg">
+                        Prescription Analysis
+                      </h3>
+                    </div>
+                    <span className="bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-medium">
+                      AI Powered
+                    </span>
                   </div>
-                  <p className="text-green-700 dark:text-green-300 mb-3 text-sm md:text-base break-words">
-                    {eli5Text}
-                  </p>
+                  
+                  <div className="space-y-3 text-sm md:text-base leading-relaxed">
+                    {formatAIResponse(eli5Text)}
+                  </div>
                   
                   {/* Text-to-Speech Controls */}
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => isSpeaking ? stopSpeaking() : speakText(eli5Text)}
-                        className={`flex-1 px-4 py-2 rounded-lg transition flex items-center justify-center text-sm md:text-base ${
-                          isSpeaking 
-                            ? "bg-red-600 hover:bg-red-700 text-white" 
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
-                        }`}
-                      >
-                        {isSpeaking ? (
-                          <>
-                            <Square className="w-4 h-4 mr-2" />
-                            Stop
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="w-4 h-4 mr-2" />
-                            Listen
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    
-                    {/* Speech Rate Control */}
-                    <div className="flex items-center gap-2 text-xs md:text-sm">
-                      <Volume2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                      <span className="text-gray-600 dark:text-gray-300">Speed:</span>
-                      <input
-                        type="range"
-                        min="0.5"
-                        max="2"
-                        step="0.1"
-                        value={speechRate}
-                        onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                        className="w-20 md:w-24"
-                      />
-                      <span className="text-gray-600 dark:text-gray-300">{speechRate.toFixed(1)}x</span>
-                    </div>
+                  <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => isSpeaking ? stopSpeaking() : speakText(eli5Text)}
+                          className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center text-sm md:text-base font-medium ${
+                            isSpeaking 
+                              ? "bg-red-500 hover:bg-red-600 text-white shadow-lg" 
+                              : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl"
+                          }`}
+                        >
+                          {isSpeaking ? (
+                            <>
+                              <Square className="w-4 h-4 mr-2" />
+                              Stop Listening
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-4 h-4 mr-2" />
+                              Listen to Explanation
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      
+                      {/* Speech Rate Control */}
+                      <div className="flex items-center justify-between text-xs md:text-sm">
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+                          <Volume2 className="w-4 h-4" />
+                          <span>Speech Speed:</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="2"
+                            step="0.1"
+                            value={speechRate}
+                            onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
+                            className="w-20 md:w-24 accent-blue-500"
+                          />
+                          <span className="text-gray-600 dark:text-gray-300 font-medium min-w-[40px]">
+                            {speechRate.toFixed(1)}x
+                          </span>
+                        </div>
+                      </div>
 
-                    {!('speechSynthesis' in window) && (
-                      <p className="text-xs text-red-600 dark:text-red-400 flex items-center">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Text-to-speech not supported in your browser
-                      </p>
-                    )}
+                      {!('speechSynthesis' in window) && (
+                        <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+                          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                          <span>Text-to-speech not supported in your browser</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
