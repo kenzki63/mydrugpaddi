@@ -552,7 +552,9 @@ import {
   Globe,
   FileText,
   Plus,
-  Calendar
+  Calendar,
+  Menu,
+  X
 } from 'lucide-react';
 
 interface Reminder {
@@ -637,10 +639,24 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("english");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   
   // Text-to-Speech State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [speechRate, setSpeechRate] = useState<number>(0.9);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isMobileMenuOpen && !target.closest('.mobile-menu') && !target.closest('.menu-button')) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isMobileMenuOpen]);
 
   // Load available voices
   useEffect(() => {
@@ -894,58 +910,114 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
       {/* Dark Mode Toggle */}
       <DarkModeToggle />
 
-      {/* Navbar */}
-      <nav className="bg-purple-600 dark:bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
-        <h1 className="text-2xl font-bold flex items-center">
-          <Pill className="w-6 h-6 mr-3" />
-          MyDrugPaddi
-        </h1>
-        <div className="flex items-center space-x-4">
-          {/* Language Selector */}
-          <div className="flex items-center space-x-2">
-            <Globe className="w-4 h-4 text-white" />
-            <select
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-purple-500"
+      {/* Enhanced Responsive Navbar */}
+      <nav className="bg-purple-600 dark:bg-gray-800 text-white p-4 shadow-md">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center">
+            {/* Logo and Brand */}
+            <div className="flex items-center space-x-3">
+              <Pill className="w-6 h-6 md:w-8 md:h-8" />
+              <h1 className="text-xl md:text-2xl font-bold whitespace-nowrap">
+                MyDrugPaddi
+              </h1>
+            </div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              {/* Language Selector */}
+              <div className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-white" />
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-purple-500"
+                >
+                  {LANGUAGES.map((language) => (
+                    <option key={language.code} value={language.code}>
+                      {language.flag} {language.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Logout Button */}
+              <button
+                onClick={onLogout}
+                className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition flex items-center whitespace-nowrap"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </button>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-lg bg-purple-700 hover:bg-purple-800 transition menu-button"
             >
-              {LANGUAGES.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.flag} {language.name}
-                </option>
-              ))}
-            </select>
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
+            </button>
           </div>
-          <button
-            onClick={onLogout}
-            className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition flex items-center"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </button>
+
+          {/* Mobile Menu Dropdown */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden mt-4 p-4 bg-purple-700 rounded-lg mobile-menu">
+              <div className="space-y-4">
+                {/* Language Selector Mobile */}
+                <div className="flex items-center space-x-2">
+                  <Globe className="w-4 h-4 text-white" />
+                  <select
+                    value={selectedLanguage}
+                    onChange={(e) => setSelectedLanguage(e.target.value)}
+                    className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-purple-500"
+                  >
+                    {LANGUAGES.map((language) => (
+                      <option key={language.code} value={language.code}>
+                        {language.flag} {language.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Logout Button Mobile */}
+                <button
+                  onClick={onLogout}
+                  className="w-full bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition flex items-center justify-center"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
-      <main className="flex-1 p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Main Content */}
+      <main className="flex-1 p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Upload Section */}
-        <section className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg flex flex-col items-center">
-          <div className="flex justify-between items-center w-full mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
+        <section className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-2xl shadow-lg flex flex-col items-center">
+          <div className="flex justify-between items-center w-full mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
               <FileText className="w-5 h-5 mr-2 text-purple-600" />
               Upload Prescription
             </h2>
-            <span className="text-sm bg-purple-500 text-white px-2 py-1 rounded-full flex items-center">
+            <span className="text-xs md:text-sm bg-purple-500 text-white px-2 py-1 rounded-full flex items-center">
               <Globe className="w-3 h-3 mr-1" />
               {currentLanguage?.name}
             </span>
           </div>
 
-          <label className="cursor-pointer border-2 border-dashed border-purple-300 dark:border-purple-600 rounded-2xl p-8 text-center hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors w-full">
-            <Upload className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
-            <p className="text-lg font-semibold text-purple-600 dark:text-purple-400">
+          <label className="cursor-pointer border-2 border-dashed border-purple-300 dark:border-purple-600 rounded-2xl p-6 md:p-8 text-center hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors w-full">
+            <Upload className="w-8 h-8 md:w-12 md:h-12 text-purple-600 dark:text-purple-400 mx-auto mb-3" />
+            <p className="text-base md:text-lg font-semibold text-purple-600 dark:text-purple-400">
               Upload Prescription Image
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
               Click to select or drag and drop
             </p>
             
@@ -959,7 +1031,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
 
           {selectedImage && (
             <div className="mt-4 w-full">
-              <p className="text-gray-600 dark:text-gray-300 mb-2 flex items-center">
+              <p className="text-gray-600 dark:text-gray-300 mb-2 flex items-center text-sm md:text-base">
                 <FileText className="w-4 h-4 mr-2" />
                 Preview:
               </p>
@@ -972,26 +1044,26 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
               {/* OCR + Explanation */}
               <button
                 onClick={handleOCR}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 w-full flex items-center justify-center"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 md:px-6 rounded-lg transition-all duration-200 transform hover:scale-105 w-full flex items-center justify-center text-sm md:text-base"
               >
                 <Brain className="w-4 h-4 mr-2" />
                 Extract Text
               </button>
 
               {ocrText && (
-                <div className="mt-4 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-sm text-gray-900 dark:text-gray-100">
+                <div className="mt-4 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg text-xs md:text-sm text-gray-900 dark:text-gray-100">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="font-semibold flex items-center">
                       <FileText className="w-4 h-4 mr-2" />
                       Extracted Text:
                     </h3>
                   </div>
-                  <p>{ocrText}</p>
+                  <p className="break-words">{ocrText}</p>
 
                   <button
                     onClick={handleExplain}
                     disabled={isLoading}
-                    className={`mt-3 text-white px-3 py-2 rounded-lg transition w-full flex items-center justify-center ${
+                    className={`mt-3 text-white px-3 py-2 rounded-lg transition w-full flex items-center justify-center text-sm md:text-base ${
                       isLoading 
                         ? 'bg-gray-400 cursor-not-allowed' 
                         : 'bg-purple-600 hover:bg-purple-700'
@@ -1007,12 +1079,12 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
               {eli5Text && eli5Text !== "Thinking..." && (
                 <div className="mt-4 bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-700">
                   <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-semibold text-green-800 dark:text-green-200 flex items-center">
+                    <h3 className="font-semibold text-green-800 dark:text-green-200 flex items-center text-sm md:text-base">
                       <Stethoscope className="w-4 h-4 mr-2" />
                       Simplified Explanation:
                     </h3>
                   </div>
-                  <p className="text-green-700 dark:text-green-300 mb-3">
+                  <p className="text-green-700 dark:text-green-300 mb-3 text-sm md:text-base break-words">
                     {eli5Text}
                   </p>
                   
@@ -1021,7 +1093,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => isSpeaking ? stopSpeaking() : speakText(eli5Text)}
-                        className={`flex-1 px-4 py-2 rounded-lg transition flex items-center justify-center ${
+                        className={`flex-1 px-4 py-2 rounded-lg transition flex items-center justify-center text-sm md:text-base ${
                           isSpeaking 
                             ? "bg-red-600 hover:bg-red-700 text-white" 
                             : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -1042,7 +1114,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                     </div>
                     
                     {/* Speech Rate Control */}
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-xs md:text-sm">
                       <Volume2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       <span className="text-gray-600 dark:text-gray-300">Speed:</span>
                       <input
@@ -1052,7 +1124,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                         step="0.1"
                         value={speechRate}
                         onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                        className="w-24"
+                        className="w-20 md:w-24"
                       />
                       <span className="text-gray-600 dark:text-gray-300">{speechRate.toFixed(1)}x</span>
                     </div>
@@ -1071,8 +1143,8 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
         </section>
 
         {/* Reminders Section */}
-        <section className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center">
+        <section className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-2xl shadow-lg">
+          <h2 className="text-lg md:text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center">
             <Bell className="w-5 h-5 mr-2 text-purple-600" />
             Medication Reminders
           </h2>
@@ -1085,7 +1157,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                 type="time"
                 value={newTime}
                 onChange={(e) => setNewTime(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm md:text-base"
               />
             </div>
             
@@ -1096,7 +1168,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                 placeholder="Medicine Name"
                 value={newMedicine}
                 onChange={(e) => setNewMedicine(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm md:text-base"
               />
             </div>
             
@@ -1105,16 +1177,16 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
               placeholder="Dosage (e.g. 2 pieces)"
               value={newDosage}
               onChange={(e) => setNewDosage(e.target.value)}
-              className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 w-full bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm md:text-base"
             />
 
             {/* Days selection */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1 md:gap-2">
               {daysOfWeek.map((day) => (
                 <button
                   key={day}
                   onClick={() => toggleDay(day)}
-                  className={`px-2 py-1 rounded-lg border flex items-center ${
+                  className={`px-2 py-1 rounded-lg border flex items-center text-xs md:text-sm ${
                     selectedDays.includes(day)
                       ? "bg-green-600 text-white border-green-600"
                       : "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -1131,7 +1203,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
               <select
                 value={newTone}
                 onChange={(e) => setNewTone(e.target.value)}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm md:text-base"
               >
                 {tones.map((tone, idx) => (
                   <option key={idx} value={tone.file}>
@@ -1141,16 +1213,16 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
               </select>
               <button
                 onClick={previewTone}
-                className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition flex items-center"
+                className="bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600 transition flex items-center text-sm md:text-base"
               >
                 <Volume2 className="w-4 h-4 mr-1" />
-                Preview
+                <span className="hidden sm:inline">Preview</span>
               </button>
             </div>
 
             <button
               onClick={addReminder}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition w-full flex items-center justify-center"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition w-full flex items-center justify-center text-sm md:text-base"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Reminder
@@ -1159,7 +1231,7 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
 
           {/* Reminder List */}
           {reminders.length === 0 ? (
-            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center text-gray-500 dark:text-gray-300 flex items-center justify-center">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-center text-gray-500 dark:text-gray-300 flex items-center justify-center text-sm md:text-base">
               <Clock className="w-4 h-4 mr-2" />
               No reminders set yet
             </div>
@@ -1176,15 +1248,15 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                     </div>
                   ) : (
                     <div>
-                      <p className="font-medium flex items-center">
+                      <p className="font-medium flex items-center text-sm md:text-base">
                         <Clock className="w-4 h-4 mr-2 text-green-600" />
                         {rem.time} - {rem.medicine} ({rem.dosage})
                       </p>
-                      <p className="flex items-center">
+                      <p className="flex items-center text-sm md:text-base">
                         <Calendar className="w-4 h-4 mr-2 text-blue-600" />
                         Days: {rem.days.join(", ")}
                       </p>
-                      <p className="flex items-center">
+                      <p className="flex items-center text-sm md:text-base">
                         <Volume2 className="w-4 h-4 mr-2 text-purple-600" />
                         Tone: {tones.find((t) => t.file === rem.tone)?.label}
                       </p>
@@ -1193,14 +1265,14 @@ const Dashboard: React.FC<Props> = ({ onLogout }) => {
                   <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => toggleEdit(rem.id)}
-                      className="px-3 py-1 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition flex items-center"
+                      className="px-3 py-1 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition flex items-center text-xs md:text-sm"
                     >
                       <Edit className="w-4 h-4 mr-1" />
                       {rem.isEditing ? "Save" : "Edit"}
                     </button>
                     <button
                       onClick={() => deleteReminder(rem.id)}
-                      className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition flex items-center"
+                      className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700 transition flex items-center text-xs md:text-sm"
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
                       Delete
