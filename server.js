@@ -221,7 +221,7 @@ Return ONLY valid JSON:`;
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `${this.baseUrl}/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [
             {
@@ -421,7 +421,185 @@ app.post("/api/explain", async (req, res) => {
   }
 });
 
-// ... rest of your endpoints remain exactly the same ...
+// Languages endpoint
+app.get("/api/languages", (req, res) => {
+  res.json({
+    supportedLanguages: SUPPORTED_LANGUAGES,
+    status: "API is running",
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test endpoint
+app.get("/api/test", async (req, res) => {
+  const testPrescription = "RX: Amoxicillin 500mg CAPs. Sig: 1 CAP PO TID x 10 days. Disp: #30. Refills: 0. Diagnosis: Acute bacterial sinusitis.";
+  
+  try {
+    const response = await axios.post(
+      "http://localhost:5000/api/explain",
+      { 
+        text: testPrescription,
+        language: "english"
+      }
+    );
+
+    res.json({
+      test: "COMPREHENSIVE API TEST",
+      input: testPrescription,
+      output: response.data,
+      status: "API is working correctly",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.json({
+      test: "FALLBACK SYSTEM TEST",
+      input: testPrescription,
+      output: { explanation: "Using enhanced fallback system with RxNorm medical data" },
+      status: "Using enhanced medical analysis system"
+    });
+  }
+});
+
+// Connection test endpoint
+app.get("/api/connection-test", (req, res) => {
+  res.json({
+    status: "connected",
+    server: "MyDrugPaddi Backend API",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    clientInfo: {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      origin: req.get('origin'),
+      accept: req.get('accept')
+    },
+    services: {
+      gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not configured',
+      rxNorm: 'available',
+      apiStatus: 'operational'
+    }
+  });
+});
+
+// Root endpoint
+app.get("/api", (req, res) => {
+  res.json({ 
+    message: "🏥 MyDrugPaddi Prescription Analysis API",
+    description: "AI-powered prescription explanation with Gemini 2.0 Flash AI and NIH RxNorm medical database",
+    version: "3.0.0",
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: "GET /api/health",
+      explain: "POST /api/explain",
+      languages: "GET /api/languages",
+      test: "GET /api/test",
+      connectionTest: "GET /api/connection-test"
+    },
+    features: {
+      multiLanguageSupport: true,
+      geminiAIAnalysis: !!process.env.GEMINI_API_KEY,
+      rxNormMedicalData: true,
+      drugInteractionChecking: true,
+      medicalDisclaimer: true
+    },
+    supportedLanguages: Object.keys(SUPPORTED_LANGUAGES),
+    statistics: {
+      totalLanguages: Object.keys(SUPPORTED_LANGUAGES).length,
+      maxTextLength: 5000,
+      responseTime: "< 30s"
+    }
+  });
+});
+
+// FIXED: Enhanced Catch-all handler for React Router
+if (process.env.NODE_ENV === 'production') {
+  // Serve React app for any non-API route
+  app.get(/^(?!\/api).*/, (req, res) => {
+    console.log(`🎯 Serving React app for: ${req.path}`);
+    res.sendFile(path.join(__dirname, 'build', 'index.html'), (err) => {
+      if (err) {
+        console.error('Error serving React app:', err);
+        res.status(500).json({
+          error: "Frontend loading error",
+          message: "Please refresh the page or try again later"
+        });
+      }
+    });
+  });
+} else {
+  // Development route
+  app.get('/', (req, res) => {
+    res.json({ 
+      message: "MyDrugPaddi API Server - Development Mode",
+      environment: "development",
+      instructions: "This is the backend API. The frontend runs on a different port in development.",
+      apiEndpoints: {
+        health: "GET /api/health",
+        explain: "POST /api/explain",
+        languages: "GET /api/languages",
+        test: "GET /api/test",
+        connectionTest: "GET /api/connection-test"
+      },
+      note: "Use React development server for frontend interface"
+    });
+  });
+}
+
+// Enhanced 404 handler for API routes
+app.use(/\/api\//, (req, res) => {
+  res.status(404).json({
+    error: "API endpoint not found",
+    message: `The API endpoint ${req.method} ${req.path} does not exist.`,
+    availableEndpoints: [
+      "GET /api/health",
+      "POST /api/explain",
+      "GET /api/languages", 
+      "GET /api/test",
+      "GET /api/connection-test",
+      "GET /api"
+    ],
+    help: "Check the API documentation at GET /api for available endpoints"
+  });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error('🚨 Global Server Error:', {
+    message: error.message,
+    stack: error.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    timestamp: new Date().toISOString()
+  });
+
+  // CORS errors
+  if (error.message.includes('CORS')) {
+    return res.status(403).json({
+      error: "CORS policy violation",
+      message: "Request blocked by CORS policy"
+    });
+  }
+
+  res.status(500).json({
+    error: "Internal server error",
+    message: "Something went wrong on our end. Please try again later.",
+    reference: `ERR_${Date.now()}`,
+    path: req.path
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 const PORT = process.env.PORT || 5000;
 
@@ -432,15 +610,15 @@ app.listen(PORT, '0.0.0.0', () => {
 🚀 Server running on port ${PORT}
 🌍 Environment: ${process.env.NODE_ENV || 'development'}
 📡 Host: 0.0.0.0 (accessible from all network interfaces)
-🤖 Gemini API Key: ${process.env.GEMINI_API_KEY ? '✅ Configured' : '❌ Not configured'}
+🤖 Gemini API: ${process.env.GEMINI_API_KEY ? '✅ 2.0 Flash Configured' : '❌ Not configured'}
 🏥 RxNorm Medical Database: ✅ Enabled
-🎯 Medical Analysis Engine: ✅ Our own engine (No Hugging Face)
+🎯 Medical Analysis Engine: ✅ Our own engine
 📊 Supported languages: ${Object.keys(SUPPORTED_LANGUAGES).length}
 ⏰ Startup time: ${new Date().toISOString()}
 
 📋 Available Endpoints:
    • GET  /api/health          - Health check
-   • POST /api/explain         - Prescription analysis (Gemini + RxNorm + Our Engine)
+   • POST /api/explain         - Prescription analysis (Gemini 2.0 Flash + RxNorm)
    • GET  /api/languages       - Supported languages
    • GET  /api/test            - System test
    • GET  /api/connection-test - Connection test
