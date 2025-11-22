@@ -195,9 +195,9 @@ const DrugInteractionChecker: React.FC<DrugInteractionCheckerProps> = () => {
           Drug Interaction Checker
         </h2>
         <div className="flex items-center space-x-2">
-          <Sparkles className="w-4 h-4 text-purple-500" />
+          {/* <Sparkles className="w-4 h-4 text-purple-500" /> */}
           <span className="text-xs bg-purple-500 text-white px-2 py-1 rounded-full">
-            Gemini 2.5 Flash
+            English
           </span>
         </div>
       </div>
