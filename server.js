@@ -90,7 +90,7 @@ class RxNormService {
 // Gemini AI Service for Medical Text Analysis
 class GeminiMedicalService {
   constructor() {
-    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
   }
 
   async analyzePrescriptionText(text) {
@@ -128,7 +128,7 @@ Focus on accuracy and be conservative - only include medications you're confiden
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}?key=${process.env.GEMINI_API_KEY}`,
+        `${this.baseUrl}/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [
             {
@@ -165,7 +165,7 @@ Focus on accuracy and be conservative - only include medications you're confiden
       throw new Error('Could not parse Gemini response');
       
     } catch (error) {
-      console.error('Gemini API error:', error.message);
+      console.error('Gemini API error:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -196,7 +196,7 @@ Format the response in clear, easy-to-understand language for patients.`;
 
     try {
       const response = await axios.post(
-        `${this.baseUrl}?key=${process.env.GEMINI_API_KEY}`,
+        `${this.baseUrl}/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           contents: [
             {
@@ -225,7 +225,7 @@ Format the response in clear, easy-to-understand language for patients.`;
       return response.data.candidates[0].content.parts[0].text;
       
     } catch (error) {
-      console.error('Gemini enhanced analysis error:', error.message);
+      console.error('Gemini enhanced analysis error:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -276,6 +276,7 @@ const MEDICAL_DISCLAIMERS = {
 
 // Enhanced Prescription explanation endpoint with Gemini + RxNorm + Hugging Face
 app.post("/api/explain", async (req, res) => {
+  const startTime = Date.now(); // FIXED: Added startTime definition
   const { text, language = "english" } = req.body;
   
   // Input validation
@@ -304,10 +305,10 @@ app.post("/api/explain", async (req, res) => {
       try {
         console.log("🔍 Gemini: Extracting medications from text...");
         geminiAnalysis = await geminiService.analyzePrescriptionText(text);
-        console.log("✅ Gemini extraction successful:", geminiAnalysis.medications);
+        console.log("✅ Gemini extraction successful:", geminiAnalysis?.medications);
         
         // Step 2: Enhance with RxNorm data
-        if (geminiAnalysis.medications && geminiAnalysis.medications.length > 0) {
+        if (geminiAnalysis && geminiAnalysis.medications && geminiAnalysis.medications.length > 0) {
           console.log("🏥 RxNorm: Fetching medical data...");
           rxNormData = {
             medications: [],
@@ -418,7 +419,7 @@ Keep it clear and easy to understand:`;
     }
 
     // Fallback: Use Gemini for direct analysis if available
-    if (process.env.GEMINI_API_KEY && geminiAnalysis) {
+    if (process.env.GEMINI_API_KEY) {
       try {
         console.log("🔄 Fallback: Using Gemini for direct analysis...");
         const directAnalysis = await geminiService.createEnhancedAnalysis(text, rxNormData);
@@ -485,6 +486,29 @@ Keep it clear and easy to understand:`;
       });
     }
 
+    // Basic medication detection fallback
+    const commonMeds = ['amoxicillin', 'ibuprofen', 'warfarin', 'metformin', 'lisinopril', 'aspirin', 'sertraline'];
+    const detectedMeds = commonMeds.filter(med => text.toLowerCase().includes(med));
+    
+    if (detectedMeds.length > 0) {
+      let basicAnalysis = `**PRESCRIPTION ANALYSIS**\n\n`;
+      basicAnalysis += `**Detected Medications:** ${detectedMeds.join(', ')}\n\n`;
+      basicAnalysis += `**General Guidance:**\n`;
+      basicAnalysis += `• Take medications exactly as prescribed\n`;
+      basicAnalysis += `• Complete full antibiotic courses if prescribed\n`;
+      basicAnalysis += `• Contact your doctor with any concerns\n`;
+      basicAnalysis += `• Keep all follow-up appointments\n\n`;
+
+      return res.json({ 
+        explanation: basicAnalysis + `\n\n${MEDICAL_DISCLAIMERS[language] || MEDICAL_DISCLAIMERS.english}`,
+        language: language,
+        analyzedBy: "Basic Medication Detection",
+        sources: ["basic"],
+        fallback: true,
+        processingTime: Date.now() - startTime
+      });
+    }
+
     // Ultimate emergency fallback
     const ultimateFallback = `**PRESCRIPTION ANALYSIS**\n\nWe're experiencing technical difficulties. Please consult your healthcare provider or pharmacist for prescription information.\n\n${MEDICAL_DISCLAIMERS[language] || MEDICAL_DISCLAIMERS.english}`;
     
@@ -527,21 +551,18 @@ app.get("/api/test", async (req, res) => {
   const testPrescription = "RX: Amoxicillin 500mg CAPs. Sig: 1 CAP PO TID x 10 days. Disp: #30. Refills: 0. Diagnosis: Acute bacterial sinusitis.";
   
   try {
-    const response = await fetch('http://localhost:5000/api/explain', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+    const response = await axios.post(
+      "http://localhost:5000/api/explain",
+      { 
         text: testPrescription,
         language: "english"
-      })
-    });
-
-    const data = await response.json();
+      }
+    );
 
     res.json({
       test: "COMPREHENSIVE API TEST",
       input: testPrescription,
-      output: data,
+      output: response.data,
       status: "API is working correctly",
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development'
@@ -550,7 +571,7 @@ app.get("/api/test", async (req, res) => {
     res.json({
       test: "FALLBACK SYSTEM TEST",
       input: testPrescription,
-      output: { explanation: "Using enhanced fallback system with Gemini + RxNorm" },
+      output: { explanation: "Using enhanced fallback system with RxNorm medical data" },
       status: "Using enhanced medical analysis system"
     });
   }
