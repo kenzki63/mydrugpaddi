@@ -1,173 +1,134 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import { 
   Pill, 
   AlertTriangle, 
-  Info, 
-  Trash2, 
-  Plus,
-  Check,
-  Skull,
-  AlertCircle,
+  CheckCircle,
+  Search,
+  FileText,
+  X,
+  Sparkles,
   Shield
 } from 'lucide-react';
-
-interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-}
 
 interface Interaction {
   severity: 'high' | 'medium' | 'low';
   description: string;
-  recommendation: string;
+  medications: string[];
 }
 
-// Define proper TypeScript interfaces for the interactions
-interface DrugInteractions {
-  [key: string]: {
-    [key: string]: Interaction;
-  };
-}
+interface DrugInteractionCheckerProps {}
 
-const COMMON_INTERACTIONS: DrugInteractions = {
-  // Pain & Inflammation
-  'ibuprofen': {
-    'warfarin': {
-      severity: 'high',
-      description: 'Increased risk of bleeding',
-      recommendation: 'Monitor for bleeding signs, avoid combination if possible'
-    },
-    'aspirin': {
-      severity: 'medium', 
-      description: 'Increased risk of stomach bleeding',
-      recommendation: 'Take with food, monitor for stomach pain'
-    },
-    'alcohol': {
-      severity: 'medium',
-      description: 'Increased risk of stomach bleeding and liver damage',
-      recommendation: 'Avoid alcohol while taking this medication'
-    }
-  },
-  
-  // Antibiotics
-  'amoxicillin': {
-    'warfarin': {
-      severity: 'medium',
-      description: 'May increase warfarin effect',
-      recommendation: 'Monitor INR levels closely'
-    },
-    'birth control': {
-      severity: 'medium',
-      description: 'May reduce effectiveness of oral contraceptives',
-      recommendation: 'Use backup contraception during treatment'
-    }
-  },
-  
-  // Heart & Blood Pressure
-  'lisinopril': {
-    'ibuprofen': {
-      severity: 'medium',
-      description: 'Reduced blood pressure control',
-      recommendation: 'Monitor blood pressure, adjust dosage if needed'
-    }
-  },
-  
-  // Diabetes
-  'metformin': {
-    'alcohol': {
-      severity: 'high',
-      description: 'Risk of lactic acidosis',
-      recommendation: 'Avoid alcohol consumption'
-    }
-  },
-  
-  // Mental Health
-  'sertraline': {
-    'ibuprofen': {
-      severity: 'medium',
-      description: 'Increased bleeding risk',
-      recommendation: 'Use caution, monitor for bruising'
-    },
-    'alcohol': {
-      severity: 'medium',
-      description: 'Increased drowsiness and impairment',
-      recommendation: 'Avoid alcohol while taking this medication'
-    }
-  },
-  
-  // Blood Thinners
-  'warfarin': {
-    'aspirin': {
-      severity: 'high',
-      description: 'Severely increased bleeding risk',
-      recommendation: 'Avoid combination, use alternative pain relief'
-    },
-    'vitamin k': {
-      severity: 'medium',
-      description: 'Reduced warfarin effectiveness',
-      recommendation: 'Maintain consistent vitamin K intake'
-    }
-  }
-};
-
-const DrugInteractionChecker: React.FC = () => {
-  const [medications, setMedications] = useState<Medication[]>([]);
-  const [currentMed, setCurrentMed] = useState('');
-  const [currentDosage, setCurrentDosage] = useState('');
-  const [currentFrequency, setCurrentFrequency] = useState('');
+const DrugInteractionChecker: React.FC<DrugInteractionCheckerProps> = () => {
+  const [prescriptionText, setPrescriptionText] = useState('');
   const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState('');
 
-  const addMedication = () => {
-    if (currentMed.trim()) {
-      const newMed: Medication = {
-        id: Date.now().toString(),
-        name: currentMed.toLowerCase(),
-        dosage: currentDosage,
-        frequency: currentFrequency
-      };
+  const analyzeInteractions = async () => {
+    if (!prescriptionText.trim()) return;
+    
+    setIsAnalyzing(true);
+    setInteractions([]);
+    setAnalysisResult('');
+
+    try {
+      const response = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: prescriptionText,
+          language: 'english'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Analysis failed');
       
-      const updatedMeds = [...medications, newMed];
-      setMedications(updatedMeds);
-      checkInteractions(updatedMeds);
+      const data = await response.json();
+      setAnalysisResult(data.explanation);
       
-      setCurrentMed('');
-      setCurrentDosage('');
-      setCurrentFrequency('');
+      // Extract interactions from the analysis
+      extractInteractionsFromAnalysis(data.explanation);
+      
+    } catch (error) {
+      console.error('Interaction analysis failed:', error);
+      setAnalysisResult('Unable to analyze drug interactions at this time. Please try again later.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const removeMedication = (id: string) => {
-    const updatedMeds = medications.filter(med => med.id !== id);
-    setMedications(updatedMeds);
-    checkInteractions(updatedMeds);
-  };
-
-  const checkInteractions = (meds: Medication[]) => {
+  const extractInteractionsFromAnalysis = (analysis: string) => {
     const foundInteractions: Interaction[] = [];
     
-    // Check each combination of medications
-    for (let i = 0; i < meds.length; i++) {
-      for (let j = i + 1; j < meds.length; j++) {
-        const med1 = meds[i].name;
-        const med2 = meds[j].name;
+    // Look for interaction patterns in the analysis
+    if (analysis.includes('interaction') || analysis.includes('Interaction')) {
+      const lines = analysis.split('\n');
+      
+      lines.forEach(line => {
+        const lowerLine = line.toLowerCase();
         
-        // Check both directions with proper type safety
-        const interaction = 
-          COMMON_INTERACTIONS[med1]?.[med2] || 
-          COMMON_INTERACTIONS[med2]?.[med1];
-        
-        if (interaction) {
-          foundInteractions.push({
-            ...interaction,
-            description: `${med1} + ${med2}: ${interaction.description}`
-          });
+        // High severity patterns
+        if (lowerLine.includes('severe') || lowerLine.includes('high risk') || lowerLine.includes('dangerous')) {
+          const meds = extractMedicationsFromLine(line);
+          if (meds.length >= 2) {
+            foundInteractions.push({
+              severity: 'high',
+              description: line.trim(),
+              medications: meds
+            });
+          }
         }
-      }
+        // Medium severity patterns
+        else if (lowerLine.includes('moderate') || lowerLine.includes('medium risk') || lowerLine.includes('caution')) {
+          const meds = extractMedicationsFromLine(line);
+          if (meds.length >= 2) {
+            foundInteractions.push({
+              severity: 'medium',
+              description: line.trim(),
+              medications: meds
+            });
+          }
+        }
+        // Low severity patterns
+        else if (lowerLine.includes('interaction') && (lowerLine.includes('minor') || lowerLine.includes('low risk'))) {
+          const meds = extractMedicationsFromLine(line);
+          if (meds.length >= 2) {
+            foundInteractions.push({
+              severity: 'low',
+              description: line.trim(),
+              medications: meds
+            });
+          }
+        }
+      });
     }
-    
+
     setInteractions(foundInteractions);
+  };
+
+  const extractMedicationsFromLine = (line: string): string[] => {
+    const commonMeds = [
+      'paracetamol', 'ibuprofen', 'amoxicillin', 'warfarin', 'metformin',
+      'lisinopril', 'aspirin', 'sertraline', 'atorvastatin', 'omeprazole',
+      'levothyroxine', 'metoprolol', 'simvastatin', 'losartan', 'amlodipine'
+    ];
+    
+    const found: string[] = [];
+    const lowerLine = line.toLowerCase();
+    
+    commonMeds.forEach(med => {
+      if (lowerLine.includes(med)) {
+        found.push(med.charAt(0).toUpperCase() + med.slice(1));
+      }
+    });
+    
+    return found;
+  };
+
+  const clearAnalysis = () => {
+    setPrescriptionText('');
+    setInteractions([]);
+    setAnalysisResult('');
   };
 
   const getSeverityColor = (severity: string) => {
@@ -181,139 +142,180 @@ const DrugInteractionChecker: React.FC = () => {
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
-      case 'high': return <Skull className="inline w-4 h-4 mr-2" />;
-      case 'medium': return <AlertTriangle className="inline w-4 h-4 mr-2" />;
-      case 'low': return <AlertCircle className="inline w-4 h-4 mr-2" />;
-      default: return <Info className="inline w-4 h-4 mr-2" />;
+      case 'high': return <AlertTriangle className="w-5 h-5" />;
+      case 'medium': return <Shield className="w-5 h-5" />;
+      case 'low': return <CheckCircle className="w-5 h-5" />;
+      default: return <AlertTriangle className="w-5 h-5" />;
     }
   };
 
-  return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center">
-        <Pill className="w-5 h-5 mr-2 text-purple-600" />
-        Drug Interaction Checker
-      </h2>
+  const formatAnalysisResult = (text: string) => {
+    if (!text) return null;
 
-      {/* Add Medication Form */}
-      <div className="space-y-3 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            type="text"
-            placeholder="Medication name"
-            value={currentMed}
-            onChange={(e) => setCurrentMed(e.target.value)}
-            className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            type="text"
-            placeholder="Dosage (e.g., 500mg)"
-            value={currentDosage}
-            onChange={(e) => setCurrentDosage(e.target.value)}
-            className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          />
-          <input
-            type="text"
-            placeholder="Frequency (e.g., 2x daily)"
-            value={currentFrequency}
-            onChange={(e) => setCurrentFrequency(e.target.value)}
-            className="border border-gray-300 dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          />
-        </div>
-        <button
-          onClick={addMedication}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition w-full flex items-center justify-center"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Medication
-        </button>
-      </div>
-
-      {/* Current Medications */}
-      {medications.length > 0 && (
-        <div className="mb-6">
-          <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100 flex items-center">
-            <Pill className="w-4 h-4 mr-2 text-blue-600" />
-            Your Medications:
-          </h3>
-          <div className="space-y-2">
-            {medications.map((med) => (
-              <div
-                key={med.id}
-                className="flex justify-between items-center p-3 bg-blue-50 dark:bg-gray-700 rounded-lg"
-              >
-                <div className="flex items-center">
-                  <Pill className="w-4 h-4 mr-2 text-blue-600" />
-                  <span className="font-medium capitalize">{med.name}</span>
-                  {med.dosage && <span> - {med.dosage}</span>}
-                  {med.frequency && <span> ({med.frequency})</span>}
-                </div>
-                <button
-                  onClick={() => removeMedication(med.id)}
-                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 flex items-center"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+    const sections = text.split(/\n(?=[A-Z][A-Za-z\s]+:)/);
+    
+    return sections.map((section, index) => {
+      const [header, ...content] = section.split('\n');
+      const cleanContent = content.filter(line => line.trim()).join('\n');
+      
+      return (
+        <div key={index} className="mb-4">
+          <div className="flex items-center mb-2">
+            {header.includes('INTERACTIONS') && <AlertTriangle className="w-4 h-4 mr-2 text-orange-600" />}
+            {header.includes('SAFETY') && <Shield className="w-4 h-4 mr-2 text-yellow-600" />}
+            {header.includes('MEDICATIONS') && <Pill className="w-4 h-4 mr-2 text-blue-600" />}
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
+              {header.replace(':', '')}
+            </h3>
+          </div>
+          <div className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+            {cleanContent.split('\n').map((line, lineIndex) => (
+              <div key={lineIndex} className="flex items-start mb-1">
+                {line.trim().startsWith('-') || line.trim().startsWith('•') ? (
+                  <>
+                    <span className="text-gray-400 mr-2">•</span>
+                    <span>{line.replace(/^[-•]\s*/, '')}</span>
+                  </>
+                ) : (
+                  <span>{line}</span>
+                )}
               </div>
             ))}
           </div>
         </div>
-      )}
+      );
+    });
+  };
 
-      {/* Interaction Results */}
+  return (
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+          <Pill className="w-5 h-5 mr-2 text-purple-600" />
+          Drug Interaction Checker
+        </h2>
+        <div className="flex items-center space-x-2">
+          <Sparkles className="w-4 h-4 text-purple-500" />
+          <span className="text-xs bg-purple-500 text-white px-2 py-1 rounded-full">
+            Gemini 2.5 Flash
+          </span>
+        </div>
+      </div>
+
+      {/* Prescription Input */}
+      <div className="space-y-4 mb-6">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+          <FileText className="w-4 h-4 inline mr-2" />
+          Paste Prescription to Check Interactions:
+        </label>
+        <textarea
+          value={prescriptionText}
+          onChange={(e) => setPrescriptionText(e.target.value)}
+          placeholder="Paste your prescription text here to check for drug interactions...
+
+Example: 
+RX: Amoxicillin 500mg capsules
+RX: Ibuprofen 400mg tablets
+Sig: Take 1 capsule three times daily
+Disp: #30
+Refills: 0"
+          rows={6}
+          className="w-full border border-gray-300 dark:border-gray-600 rounded-xl p-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+        />
+        
+        <div className="flex gap-3">
+          <button
+            onClick={analyzeInteractions}
+            disabled={!prescriptionText.trim() || isAnalyzing}
+            className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl transition-all duration-200 flex items-center justify-center font-medium shadow-lg hover:shadow-xl"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            {isAnalyzing ? 'Analyzing...' : 'Check Interactions'}
+          </button>
+          
+          <button
+            onClick={clearAnalysis}
+            className="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Interaction Alerts */}
       {interactions.length > 0 && (
-        <div className="mb-4">
-          <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100 flex items-center">
-            <AlertTriangle className="w-4 h-4 mr-2 text-yellow-600" />
-            Potential Interactions Found:
+        <div className="mb-6">
+          <h3 className="font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center">
+            <AlertTriangle className="w-4 h-4 mr-2 text-orange-500" />
+            Interaction Alerts
           </h3>
           <div className="space-y-3">
             {interactions.map((interaction, index) => (
               <div
                 key={index}
-                className={`p-4 border-l-4 rounded-r-lg ${getSeverityColor(interaction.severity)}`}
+                className={`p-4 rounded-xl border-2 ${getSeverityColor(interaction.severity)}`}
               >
-                <div className="font-semibold capitalize">
-                  {getSeverityIcon(interaction.severity)} {interaction.severity.toUpperCase()} RISK
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {getSeverityIcon(interaction.severity)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium capitalize">
+                        {interaction.severity} Risk Interaction
+                      </span>
+                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-white dark:bg-gray-800">
+                        {interaction.medications.join(' + ')}
+                      </span>
+                    </div>
+                    <p className="text-sm">{interaction.description}</p>
+                  </div>
                 </div>
-                <p className="mt-1">{interaction.description}</p>
-                <p className="mt-2 text-sm font-medium flex items-start">
-                  <Info className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Recommendation: {interaction.recommendation}</span>
-                </p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {medications.length >= 2 && interactions.length === 0 && (
-        <div className="p-4 bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg flex items-center">
-          <Check className="w-5 h-5 mr-3 text-green-600 dark:text-green-400" />
-          <p className="text-green-800 dark:text-green-200">
-            No significant interactions detected between your medications.
-            Always consult your pharmacist for complete interaction checking.
-          </p>
+      {/* Analysis Result */}
+      {analysisResult && (
+        <div className="bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 p-6 rounded-2xl border border-blue-200 dark:border-blue-700">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h3 className="font-bold text-blue-800 dark:text-blue-200">
+                Safety Analysis
+              </h3>
+            </div>
+            <span className="bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full text-xs font-medium">
+              AI Powered
+            </span>
+          </div>
+          
+          <div className="space-y-3 text-sm leading-relaxed">
+            {formatAnalysisResult(analysisResult)}
+          </div>
+
+          {interactions.length === 0 && !analysisResult.includes('interaction') && (
+            <div className="mt-4 p-3 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-green-800 dark:text-green-200 text-sm font-medium">
+                  No significant drug interactions detected
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {medications.length === 0 && (
-        <div className="p-4 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg text-center flex items-center justify-center">
-          <Pill className="w-5 h-5 mr-3 text-blue-600 dark:text-blue-400" />
-          <p className="text-blue-800 dark:text-blue-200">
-            Add your medications above to check for potential interactions.
-          </p>
+      {/* No Results State */}
+      {!analysisResult && !isAnalyzing && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <Pill className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+          <p className="text-sm">Enter prescription text to check for drug interactions</p>
         </div>
       )}
-
-      {/* Safety Disclaimer */}
-      <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm text-gray-600 dark:text-gray-300 flex items-start">
-        <Shield className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-        <p>
-          <strong>Important:</strong> This checker uses common interaction data. 
-          Always consult your healthcare provider or pharmacist for complete medication safety review.
-        </p>
-      </div>
     </div>
   );
 };
